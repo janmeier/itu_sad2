@@ -1,5 +1,6 @@
 import logging
 import sys
+import operator
 from time import time
 
 class Edge:
@@ -36,9 +37,7 @@ class Node:
 def compute_improvement(node, A, B):
 	improvement = 0
 	for e in node.edges:
-		a_in_A = e.a in A
-		b_in_A = e.b in A
-		if (a_in_A and b_in_A) or (not a_in_A and not b_in_A):
+		if (e.a in A and e.b in A) or (e.a in B and e.b in B):
 			# internal
 			improvement = improvement - e.weight
 		else:
@@ -51,9 +50,11 @@ def calc_d(A, B):
 	Da = {}
 	Db = {}
 	for a in A:
-		Da[a] = compute_improvement(a, A, B)
+		if not a.locked:
+			Da[a] = compute_improvement(a, A, B)
 	for b in B:
-		Db[b] = compute_improvement(a, A, B)
+		if not b.locked:
+			Db[b] = compute_improvement(b, A, B)
 
 	return (Da, Db)
 
@@ -68,57 +69,83 @@ def kernighan_lin(A, B):
 	gains = {
 		0: 0
 	}
-	
-	for i in range(1, len(A)):
-		node_a = max(Da, key=Da.get)
-		node_b = max(Db, key=Db.get)
 
-		e = edge_between(node_a, node_b)
+	for i in range(1, len(A) + 1):
+		sorted_da = sorted(Da.iteritems(), key=operator.itemgetter(1))
+		sorted_db = sorted(Db.iteritems(), key=operator.itemgetter(1))
+		sorted_da.reverse()
+		sorted_db.reverse()
 
-		logging.debug("Swapping %s", (node_a, node_b))
-
-		## Lock vertices
-		swaps.append((node_a, node_b))
-
-		## Do the actual swap (which might be reverted later, but is needed to calc the size of the new cut)
-		A.remove(node_a)
-		B.add(node_a)
-		B.remove(node_b)
-		A.add(node_b)
-
-		node_a.locked = True
-		node_b.locked = True
-
-		## Calc new D values
-		for (e, ne) in node_a.neighbours:
-			## node_a is removed from A and put into B. This means that for all nodes in A, external cost increases by e.weight, and their internal cost decreases by e.weight.
-			## since D = E - I then D = (E + weight) - (I - weight) = E - I + 2 weight
-			if not ne.locked:
-				if ne in A:
-					Da[ne] = Da[ne] + 2*e.weight
+		swap = None
+		max_gain = -1000000000
+		for (node_a, a_gain) in sorted_da:
+			(node_b, b_gain) = sorted_db[len(sorted_db) - 1]
+			if a_gain + b_gain <= max_gain:
+				break
+			
+			for (node_b, b_gain) in sorted_db:
+				if a_gain + b_gain <= max_gain:
+					break
+				e = edge_between(node_a, node_b)
+				if e != None:
+					weight = e.weight
 				else:
-					Db[ne] = Db[ne] - 2*e.weight
+					weight = 0
 
-		for (e, ne) in node_b.neighbours:
-			## node_b is removed from B and put into A
-			if not ne.locked:
-				if ne in A:
-					Da[ne] = Da[ne] - 2*e.weight
-				else:
-					Db[ne] = Db[ne] + 2*e.weight
+				max_gain = a_gain + b_gain - 2 * weight
+				swap = (node_a, node_b)
+				
 
-		gain = Da[node_a] + Db[node_b]
-		if e != None:
-			gain = gain - 2 * e.weight
-		gains[i] = gain
+		# node_a = max(Da, key=Da.get)
+		# node_b = max(Db, key=Db.get)
+		# swap = (node_a, node_b)
+		if swap:
+			(node_a, node_b) = swap
+			e = edge_between(node_a, node_b)
+			logging.debug("Swapping %s", (node_a, node_b))
 
-		del Da[node_a]
-		del Db[node_b]
+			## Lock vertices
+			swaps.append((node_a, node_b))
+
+			## Do the actual swap (which might be reverted later, but is needed to calc the size of the new cut)
+			A.remove(node_a)
+			B.add(node_a)
+			B.remove(node_b)
+			A.add(node_b)
+
+			node_a.locked = True
+			node_b.locked = True
+
+			gain = Da[node_a] + Db[node_b]
+			if e != None:
+				gain = gain - 2 * e.weight
+			gains[i] = gain
+
+			del Da[node_a]
+			del Db[node_b]
+
+			## Calc new D values
+			for (e, ne) in node_a.neighbours:
+				## node_a is removed from A and put into B. This means that for all nodes in A, external cost increases by e.weight, and their internal cost decreases by e.weight.
+				## since D = E - I then D = (E + weight) - (I - weight) = E - I + 2 weight
+				if not ne.locked:
+					if ne in A:
+						Da[ne] = Da[ne] + 2*e.weight
+					else:
+						Db[ne] = Db[ne] - 2*e.weight
+
+			for (e, ne) in node_b.neighbours:
+				## node_b is removed from B and put into A
+				if not ne.locked:
+					if ne in A:
+						Da[ne] = Da[ne] - 2*e.weight
+					else:
+						Db[ne] = Db[ne] + 2*e.weight
 
 	current_gain = 0
 	max_gain = -1
-	min_i = -1
-	for i in range(0, len(gains)):
+	min_i = len(swaps)
+	for i in range(1, len(gains)):
 		current_gain = current_gain + gains[i]
 
 		if current_gain >= max_gain:
@@ -127,6 +154,7 @@ def kernighan_lin(A, B):
 
 	
 	logging.info("K with maximum sub-sum: %d", min_i)
+	logging.info("Gain for k: %d", max_gain)
 
 	j = len(swaps)
 	while j > min_i:
