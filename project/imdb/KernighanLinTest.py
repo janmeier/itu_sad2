@@ -50,9 +50,7 @@ print  "New cut size: ", cut_size(new_a, new_b)
 
 
 
-# print timeit.Timer("run()","from __main__ import run").timeit(5000)
-
-originalGraph = parseImdb(600)
+originalGraph = parseImdb(800)
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
@@ -105,7 +103,7 @@ print "Running KL with initial partition (found by taking every second element)"
 print "KL returned new partition", new_a, new_b
 print  "New cut size: ", cut_size(new_a, new_b)
 
-print timeit.Timer("run()","from __main__ import run").timeit(10)
+print timeit.Timer("run()","from __main__ import run").timeit(100)
 
 # #### THEN GENERATE ALL POSSIBLE PARTITIONS TO FIND THE ACTUAL MIN
 # min_cut = sys.maxint
