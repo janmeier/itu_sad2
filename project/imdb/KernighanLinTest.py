@@ -2,9 +2,10 @@ from KernighanLin import kernighan_lin, Edge, Node, cut_size
 from partition import partitions
 from AlgProjctParsing import parseImdb, findConnectedComponents
 import logging
+import timeit
 import sys
 
-logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logging.basicConfig(stream=sys.stderr, level=logging.CRITICAL)
 
 a = Node("a")
 b = Node("b")
@@ -51,7 +52,7 @@ print  "New cut size: ", cut_size(new_a, new_b)
 
 # print timeit.Timer("run()","from __main__ import run").timeit(5000)
 
-originalGraph = parseImdb(400)
+originalGraph = parseImdb(600)
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
@@ -90,14 +91,21 @@ assert edge_count != node_count * (node_count - 1)
 #### START BY RUNNING KL WITH INITIAL PART TAKING EVERY SECOND ELEMENT INTO EACH SET
 val = nodes.values()
 
+
+def run():
+	part_a = set(val[:len(val)/2])
+	part_b = set(val[len(val)/2:])
+	(new_a, new_b) = kernighan_lin(part_a, part_b)
+
 part_a = set(val[:len(val)/2])
 part_b = set(val[len(val)/2:])
 
 print "Running KL with initial partition (found by taking every second element)", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
-
 (new_a, new_b) = kernighan_lin(part_a, part_b)
 print "KL returned new partition", new_a, new_b
 print  "New cut size: ", cut_size(new_a, new_b)
+
+print timeit.Timer("run()","from __main__ import run").timeit(10)
 
 # #### THEN GENERATE ALL POSSIBLE PARTITIONS TO FIND THE ACTUAL MIN
 # min_cut = sys.maxint
