@@ -51,7 +51,7 @@ print  "New cut size: ", cut_size(new_a, new_b)
 
 
 
-originalGraph = parseImdb(600)
+originalGraph = parseImdb(1000)
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
@@ -79,9 +79,8 @@ edge_count = 0
 for actor in max_component:
 	a = originalGraph[actor]
 	for colleague in a.colleagues:
-		if randint(0, 9) >= 5:
-			Edge(nodes[a.id], nodes[colleague])
-			edge_count = edge_count + 1
+		Edge(nodes[a.id], nodes[colleague])
+		edge_count = edge_count + 1
 
 print "Edge count: ", edge_count
 

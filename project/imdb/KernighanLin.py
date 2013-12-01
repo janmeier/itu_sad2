@@ -1,7 +1,6 @@
 import logging
 import sys
 import operator
-from time import time
 
 class Edge:
 	def __init__(self, a, b, weight = 1):
@@ -9,25 +8,16 @@ class Edge:
 		self.a = a
 		self.b = b
 		
-		a.edges.append(self)
-		b.edges.append(self)
 		a.neighbours.append((self, b))
 		b.neighbours.append((self, a))
 
 	def __repr__(self):
 		return str(self.a) + ' <--> ' + str(self.b)
 
-	# Does edge have one of its endpoints in node?
-	def connected_to(self, node):
-		return self.a == node or self.b == node
-
-
 class Node:
 	def __init__(self, name):
 		self.name = name
-		self.edges = []
 		self.neighbours = []
-		self.id = id(self)
 		self.locked = False
 
 	def __repr__(self):
@@ -36,7 +26,7 @@ class Node:
 # Compute the improvement of moving node from A to B, aka D = E - I. Node is assumed to have at least one endpoint in A
 def compute_improvement(node, A, B):
 	improvement = 0
-	for e in node.edges:
+	for (e, _) in node.neighbours:
 		if (e.a in A and e.b in A) or (e.a in B and e.b in B):
 			# internal
 			improvement = improvement - e.weight
@@ -50,16 +40,14 @@ def calc_d(A, B):
 	Da = {}
 	Db = {}
 	for a in A:
-		if not a.locked:
-			Da[a] = compute_improvement(a, A, B)
+		Da[a] = compute_improvement(a, A, B)
 	for b in B:
-		if not b.locked:
-			Db[b] = compute_improvement(b, A, B)
+		Db[b] = compute_improvement(b, A, B)
 
-	return (Da, Db)
+	return Da, Db
 
 def kernighan_lin(A, B):
-	(Da, Db) = calc_d(A, B)
+	Da, Db = calc_d(A, B)
 
 	swaps = []
 
@@ -94,18 +82,14 @@ def kernighan_lin(A, B):
 
 				max_gain = a_gain + b_gain - 2 * weight
 				swap = (node_a, node_b)
-				
 
-		# node_a = max(Da, key=Da.get)
-		# node_b = max(Db, key=Db.get)
-		# swap = (node_a, node_b)
 		if swap:
 			(node_a, node_b) = swap
 			e = edge_between(node_a, node_b)
-			logging.debug("Swapping %s", (node_a, node_b))
+			logging.debug("Swapping %s", swap)
 
 			## Lock vertices
-			swaps.append((node_a, node_b))
+			swaps.append(swap)
 
 			## Do the actual swap (which might be reverted later, but is needed to calc the size of the new cut)
 			A.remove(node_a)
@@ -151,7 +135,6 @@ def kernighan_lin(A, B):
 		if current_gain >= max_gain:
 			max_gain = current_gain
 			min_i = i
-
 	
 	logging.info("K with maximum sub-sum: %d", min_i)
 	logging.info("Gain for k: %d", max_gain)
@@ -181,8 +164,8 @@ def kernighan_lin(A, B):
 	return A, B
 
 def edge_between(n1, n2):
-	for e in n1.edges:
-		if e.connected_to(n2):
+	for (e, ne) in n1.neighbours:
+		if ne == n2:
 			return e
 
 	return None
@@ -191,7 +174,7 @@ def cut_size(A, B):
 	size = 0
 
 	for n in A:
-		for e in n.edges:
+		for (e, _) in n.neighbours:
 			if (e.a in A and e.b in B) or (e.a in B and e.b in A):
 				size = size + e.weight
 
