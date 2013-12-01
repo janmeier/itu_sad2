@@ -7,9 +7,12 @@ from collections import deque
 class Actor:
 	def __init__(self, name, actorId):
 		self.name = name
-		self.actorId = actorId
+		self.id = self.actorId = actorId
 		self.colleagues = {}
 		self.contracted = [actorId]
+
+	def __repr__(self):
+		return self.actorId + " " + self.name
 
 class Movie:
 	def __init__(self, title, rating, actors):
@@ -17,11 +20,14 @@ class Movie:
 		self.rating = rating
 		self.actors = actors
 
-def parseImdb():
+	def __repr__(self):
+		return self.name
+
+def parseImdb(max_depth = sys.maxint):
 	graph = {}
 	i = 0
 	movie = None
-	with open("imdbMovieActorLastTenYears.csv", encoding="utf8") as fd:
+	with open("imdbMovieActorLastTenYears.csv") as fd:
 		lastMovieId = 0
 		for line in fd:
 			values = line[0:-1].split(';')
@@ -39,6 +45,9 @@ def parseImdb():
 				movie = Movie(movieTitle, movieId, [actor])
 				lastMovieId = movieId
 			i += 1	
+
+			if i > max_depth:
+				break
 	return graph
 
 def buildGraph(movie, graph):
@@ -69,6 +78,7 @@ def bfs(graph, root, debug):
 	return v
 
 def findConnectedComponents(graph):
+	graphSize = len(graph)
 	nodes = {x: 1 for x in graph.keys()}
 	#nodes = list(set(originalGraph.keys()))
 	components = []
@@ -82,16 +92,6 @@ def findConnectedComponents(graph):
 		for node in visited:
 			del nodes[node]
 	return components
-
-originalGraph = parseImdb()
-graphSize = len(originalGraph.keys())
-print("OriginalGraph size: ", graphSize)
-
-components = findConnectedComponents(originalGraph)
-for component in components:
-	print("Component of size: ", len(component), ", root: ", component[0])
-print("Number of components: ", len(components))
-
 
 # !!! TO BE REIMPLEMENTED !!!
 # The code underneath can be used to calculate global min cut
@@ -147,3 +147,19 @@ def runContractMultipleTimes(originalGraph2, N):
 			minCut = result
 	print("Min cut: ", minCut)
 	print("Total number of nodes: ", len(result[1]) + len(result[2]))
+
+
+
+if __name__ == "__main__":
+	originalGraph = parseImdb()
+	graphSize = len(originalGraph.keys())
+	print("OriginalGraph size: ", graphSize)
+
+	components = findConnectedComponents(originalGraph)
+	maxlen = 0
+	for component in components:
+		if len(component) > maxlen:
+			maxlen = len(component)
+		# print("Component of size: ", len(component), ", root: ", component[0])
+	print("Number of components: ", len(components))
+	print("max size", maxlen)
