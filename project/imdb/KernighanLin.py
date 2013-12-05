@@ -1,6 +1,8 @@
 import logging
 import sys
 import operator
+import heapq
+from time import time
 
 class Edge:
 	def __init__(self, a, b, weight = 1):
@@ -14,6 +16,9 @@ class Edge:
 	def __repr__(self):
 		return str(self.a) + ' <--> ' + str(self.b)
 
+	# def __hash__(self):
+	# 	return self.a.hash() + self.b.hash()
+
 class Node:
 	def __init__(self, name):
 		self.name = name
@@ -22,6 +27,9 @@ class Node:
 
 	def __repr__(self):
 		return self.name
+
+	def __hash__(self):
+	 	return hash(self.name)
 
 # Compute the improvement of moving node from A to B, aka D = E - I. Node is assumed to have at least one endpoint in A
 def compute_improvement(node, A, B):
@@ -58,33 +66,23 @@ def kernighan_lin(A, B):
 		0: 0
 	}
 
+	sort_time = 0
+	find_time = 0
+	swap_time = 0
+	update_time = 0
+
 	for i in range(1, len(A) + 1):
-		sorted_da = sorted(Da.iteritems(), key=operator.itemgetter(1))
-		sorted_db = sorted(Db.iteritems(), key=operator.itemgetter(1))
-		sorted_da.reverse()
-		sorted_db.reverse()
+		start = time()
+		a_largest = heapq.nlargest(2, Da.iteritems(), key=operator.itemgetter(1))[1:]
+		b_largest = heapq.nlargest(2, Db.iteritems(), key=operator.itemgetter(1))[1:]
 
-		swap = None
-		max_gain = -1000000000
-		for (node_a, a_gain) in sorted_da:
-			(node_b, b_gain) = sorted_db[len(sorted_db) - 1]
-			if a_gain + b_gain <= max_gain:
-				break
-			
-			for (node_b, b_gain) in sorted_db:
-				if a_gain + b_gain <= max_gain:
-					break
-				e = edge_between(node_a, node_b)
-				if e != None:
-					weight = e.weight
-				else:
-					weight = 0
+		current_swaps = zip(a_largest, b_largest)
+		find_time = find_time + (time() - start)
 
-				max_gain = a_gain + b_gain - 2 * weight
-				swap = (node_a, node_b)
-
-		if swap:
-			(node_a, node_b) = swap
+		for swap in current_swaps:
+		# if swap:
+			start = time()
+			((node_a, gain_a), (node_b, gain_b)) = swap
 			e = edge_between(node_a, node_b)
 			logging.debug("Swapping %s", swap)
 
@@ -100,10 +98,13 @@ def kernighan_lin(A, B):
 			node_a.locked = True
 			node_b.locked = True
 
-			gain = Da[node_a] + Db[node_b]
+			gain = gain_a + gain_b
 			if e != None:
 				gain = gain - 2 * e.weight
 			gains[i] = gain
+
+			swap_time = swap_time + (time() - start)
+			start = time()
 
 			del Da[node_a]
 			del Db[node_b]
@@ -126,6 +127,8 @@ def kernighan_lin(A, B):
 					else:
 						Db[ne] = Db[ne] + 2*e.weight
 
+			update_time = update_time + (time() - start)
+
 	current_gain = 0
 	max_gain = -1
 	min_i = len(swaps)
@@ -143,11 +146,12 @@ def kernighan_lin(A, B):
 	while j > min_i:
 		j = j - 1 
 		# Rewind swap
-		swap = swaps.pop() 
-		A.add(swap[0])
-		B.remove(swap[0])
-		B.add(swap[1])
-		A.remove(swap[1])
+		((node_a, _), (node_b, _)) = swaps.pop()
+
+		A.add(node_a)
+		B.remove(node_a)
+		B.add(node_b)
+		A.remove(node_b)
 
 	new_cut = cut_size(A, B)
 	logging.debug("Final swap %s", str(swaps))
@@ -160,6 +164,11 @@ def kernighan_lin(A, B):
 			b.locked = False
 
 		kernighan_lin(A, B)
+	# print "Sort time ", sort_time
+	# print "Find time ", find_time
+	# print "Swap time", swap_time
+	# print "Update time", update_time
+	# print "\n\n"
 
 	return A, B
 

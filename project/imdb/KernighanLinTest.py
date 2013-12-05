@@ -8,50 +8,53 @@ import sys
 
 logging.basicConfig(stream=sys.stderr, level=logging.CRITICAL)
 
-a = Node("a")
-b = Node("b")
-c = Node("c")
-d = Node("d")
-e = Node("e")
-f = Node("f")
-g = Node("g")
-h = Node("h")
-i = Node("i")
-j = Node("j")
-k = Node("k")
-l = Node("l")
 
-Edge(a, b)
-Edge(a, k)
-Edge(b, c)
-Edge(k, l)
-Edge(j, i)
-Edge(h, g)
-Edge(f, g)
-Edge(e, b)
-Edge(d, e)
-Edge(k, j)
-Edge(k, g)
+def simpleGraphs():
+	a = Node("a")
+	b = Node("b")
+	c = Node("c")
+	d = Node("d")
+	e = Node("e")
+	f = Node("f")
+	g = Node("g")
+	h = Node("h")
+	i = Node("i")
+	j = Node("j")
+	k = Node("k")
+	l = Node("l")
 
-part_a = set([a, c, e, g, i, k])
-part_b = set([b, d, f, h, j, l])
-print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+	Edge(a, b, 3)
+	Edge(a, k, 12)
+	Edge(b, c, 9)
+	Edge(k, l, 1)
+	Edge(j, i, 1)
+	Edge(h, g, 1)
+	Edge(f, g, 6)
+	Edge(e, b, 12)
+	Edge(d, e, 5)
+	Edge(k, j, 20)
+	Edge(k, g, 3)
 
-(new_a, new_b) = kernighan_lin(part_a, part_b)
-print "KL returned new partition", new_a, new_b
-print  "New cut size: ", cut_size(new_a, new_b)
+	part_a = set([a, c, e, g, i, k])
+	part_b = set([b, d, f, h, j, l])
+	print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
 
-part_a = set([a, h, f, g, l, k])
-part_b = set([b, d, e, c, j, i])
-print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+	(new_a, new_b) = kernighan_lin(part_a, part_b)
+	print "KL returned new partition", new_a, new_b
+	print  "New cut size: ", cut_size(new_a, new_b)
 
-(new_a, new_b) = kernighan_lin(part_a, part_b)
-print "KL returned new partition", new_a, new_b
-print  "New cut size: ", cut_size(new_a, new_b)
+	part_a = set([a, h, f, g, l, k])
+	part_b = set([b, d, e, c, j, i])
+	print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+
+	(new_a, new_b) = kernighan_lin(part_a, part_b)
+	print "KL returned new partition", new_a, new_b
+	print  "New cut size: ", cut_size(new_a, new_b)
+
+# simpleGraphs()
 
 
-
-originalGraph = parseImdb(1000)
+originalGraph = parseImdb(4500)
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
@@ -79,7 +82,8 @@ edge_count = 0
 for actor in max_component:
 	a = originalGraph[actor]
 	for colleague in a.colleagues:
-		Edge(nodes[a.id], nodes[colleague])
+		# if randint(0, 9) >= 5:
+		Edge(nodes[a.id], nodes[colleague], a.colleagues[colleague])
 		edge_count = edge_count + 1
 
 print "Edge count: ", edge_count
