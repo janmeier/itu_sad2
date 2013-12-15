@@ -55,7 +55,7 @@ def simpleGraphs():
 # simpleGraphs()
 
 
-originalGraph = parseImdb(3500)
+originalGraph = parseImdb()
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
