@@ -1,58 +1,61 @@
 from KernighanLin import kernighan_lin, Edge, Node, cut_size
 from partition import partitions
 from AlgProjctParsing import parseImdb, findConnectedComponents
+from random import randint
+from random import shuffle
 import logging
 import timeit
 import sys
 
 logging.basicConfig(stream=sys.stderr, level=logging.CRITICAL)
 
-a = Node("a")
-b = Node("b")
-c = Node("c")
-d = Node("d")
-e = Node("e")
-f = Node("f")
-g = Node("g")
-h = Node("h")
-i = Node("i")
-j = Node("j")
-k = Node("k")
-l = Node("l")
 
-Edge(a, b)
-Edge(a, k)
-Edge(b, c)
-Edge(k, l)
-Edge(j, i)
-Edge(h, g)
-Edge(f, g)
-Edge(e, b)
-Edge(d, e)
-Edge(k, j)
-Edge(k, g)
+def simpleGraphs():
+	a = Node("a")
+	b = Node("b")
+	c = Node("c")
+	d = Node("d")
+	e = Node("e")
+	f = Node("f")
+	g = Node("g")
+	h = Node("h")
+	i = Node("i")
+	j = Node("j")
+	k = Node("k")
+	l = Node("l")
 
-part_a = set([a, c, e, g, i, k])
-part_b = set([b, d, f, h, j, l])
-print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+	Edge(a, b)
+	Edge(a, k)
+	Edge(b, c)
+	Edge(k, l)
+	Edge(j, i)
+	Edge(h, g)
+	Edge(f, g)
+	Edge(e, b)
+	Edge(d, e)
+	Edge(k, j)
+	Edge(k, g)
 
-(new_a, new_b) = kernighan_lin(part_a, part_b)
-print "KL returned new partition", new_a, new_b
-print  "New cut size: ", cut_size(new_a, new_b)
+	part_a = set([a, c, e, g, i, k])
+	part_b = set([b, d, f, h, j, l])
+	print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
 
-part_a = set([a, h, f, g, l, k])
-part_b = set([b, d, e, c, j, i])
-print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+	(new_a, new_b) = kernighan_lin(part_a, part_b)
+	print "KL returned new partition", new_a, new_b
+	print  "New cut size: ", cut_size(new_a, new_b)
 
-(new_a, new_b) = kernighan_lin(part_a, part_b)
-print "KL returned new partition", new_a, new_b
-print  "New cut size: ", cut_size(new_a, new_b)
+	part_a = set([a, h, f, g, l, k])
+	part_b = set([b, d, e, c, j, i])
+	print "Running KL with initial partition", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+
+	(new_a, new_b) = kernighan_lin(part_a, part_b)
+	print "KL returned new partition", new_a, new_b
+	print  "New cut size: ", cut_size(new_a, new_b)
+
+# simpleGraphs()
 
 
-
-# print timeit.Timer("run()","from __main__ import run").timeit(5000)
-
-originalGraph = parseImdb(600)
+originalGraph = parseImdb()
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
@@ -80,8 +83,10 @@ edge_count = 0
 for actor in max_component:
 	a = originalGraph[actor]
 	for colleague in a.colleagues:
-		Edge(nodes[a.id], nodes[colleague])
-		edge_count = edge_count + 1
+		if (actor < colleague):
+		# if randint(0, 9) >= 5:
+			Edge(nodes[a.id], nodes[colleague], a.colleagues[colleague])
+			edge_count = edge_count + 1
 
 print "Edge count: ", edge_count
 
@@ -100,32 +105,31 @@ def run():
 part_a = set(val[:len(val)/2])
 part_b = set(val[len(val)/2:])
 
-print "Running KL with initial partition (found by taking every second element)", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
+# origs = []
+# news = []
+# for i in range(0, 100):
+# 	shuffle(val)
+
+# 	part_a = set(val[:len(val)/2])
+# 	part_b = set(val[len(val)/2:])
+
+# 	sz = cut_size(part_a, part_b)
+
+# 	origs.append(sz)
+# 	(new_a, new_b) = kernighan_lin(part_a, part_b)
+# 	sz = cut_size(new_a, new_b)
+# 	news.append(sz)
+# 	print i
+
+# for o in origs:
+# 	print o
+
+# for n in news:
+# 	print n
+
+
+print "Running KL with initial partition (found by taking every second element) cut size: ", cut_size(part_a, part_b)
 (new_a, new_b) = kernighan_lin(part_a, part_b)
-print "KL returned new partition", new_a, new_b
-print  "New cut size: ", cut_size(new_a, new_b)
+print "KL returned new partition with cut size: ", cut_size(new_a, new_b)
 
-print timeit.Timer("run()","from __main__ import run").timeit(10)
-
-# #### THEN GENERATE ALL POSSIBLE PARTITIONS TO FIND THE ACTUAL MIN
-# min_cut = sys.maxint
-# for p in partitions(nodes.values()):
-# 	cut = cut_size(p[0], p[1])
-# 	# print cut
-# 	if cut < min_cut:
-# 		min_cut = cut
-	
-
-# print "Actual min cut (found by looking at all possible cuts):", min_cut
-
-# #### USE THE FIRST PARTITION FOUND BY PARTITIONS() AS INPUT TO KL TO SEE THE EFFECT OF A DIFFERENT STARTING PARTITION
-# first_part = part[0]
-# part_a = first_part[0]
-# part_b = first_part[1]
-
-# print "Running KL with initial partition (first partition from the generation of all partitions)", part_a, part_b, "cut size: ", cut_size(part_a, part_b)
-
-# (new_a, new_b) = kernighan_lin(part_a, part_b)
-# print "KL returned new partition", new_a, new_b
-# print  "New cut size: ", cut_size(new_a, new_b)
-
+print timeit.Timer("run()","from __main__ import run").timeit(100)

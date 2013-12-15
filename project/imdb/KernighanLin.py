@@ -1,5 +1,6 @@
 import logging
-from time import time
+import operator
+import heapq
 
 class Edge:
 	def __init__(self, a, b, weight = 1):
@@ -7,37 +8,34 @@ class Edge:
 		self.a = a
 		self.b = b
 		
-		a.edges.append(self)
-		b.edges.append(self)
 		a.neighbours.append((self, b))
 		b.neighbours.append((self, a))
 
 	def __repr__(self):
 		return str(self.a) + ' <--> ' + str(self.b)
 
-	# Does edge have one of its endpoints in node?
-	def connected_to(self, node):
-		return self.a == node or self.b == node
-
-
 class Node:
 	def __init__(self, name):
 		self.name = name
-		self.edges = []
-		self.neighbours = []
-		self.id = id(self)
+		self.neighbours = [] ## Neighbours is an array of (edge, node) tuples
 		self.locked = False
 
 	def __repr__(self):
 		return self.name
 
-# Compute the improvement of moving node from A to B, aka D = E - I. Node is assumed to have at least one endpoint in A
-def compute_improvement(node, A, B):
+	# Gives considerable speedup when using nodes in sets
+	def __hash__(self):
+	 	return hash(self.name)
+
+	# Gives a speedup when checking for equality (used in edge_between)
+	def __eq__(self, other):
+		return self.name == other.name
+
+# Compute the improvement of removing node from X and putting it into the other partition, aka D = E - I. This implies that node is currently found in X
+def compute_improvement(node, X):
 	improvement = 0
-	for e in node.edges:
-		a_in_A = e.a in A
-		b_in_A = e.b in A
-		if (a_in_A and b_in_A) or (not a_in_A and not b_in_A):
+	for (e, neighbour) in node.neighbours:
+		if neighbour in X:
 			# internal
 			improvement = improvement - e.weight
 		else:
@@ -46,125 +44,113 @@ def compute_improvement(node, A, B):
 
 	return improvement
 
+# Calculate initial D values
 def calc_d(A, B):
 	Da = {}
 	Db = {}
 	for a in A:
-		Da[a] = compute_improvement(a, A, B)
+		Da[a] = compute_improvement(a, A)
 	for b in B:
-		Db[b] = compute_improvement(a, A, B)
+		Db[b] = compute_improvement(b, B)
 
-	return (Da, Db)
-
-# def calc_d(A, B):
-# 	D = {}
-# 	for a in A:
-# 		D[a] = compute_improvement(a, A, B)
-# 	for b in B:
-# 		D[b] = compute_improvement(a, A, B)
-
-# 	return (D)
-
+	return Da, Db
 
 def kernighan_lin(A, B):
-	(Da, Db) = calc_d(A, B)
+	Da, Db = calc_d(A, B)
 
-	temp_a = A.copy()
-	temp_b = B.copy()
 	swaps = []
 
 	old_cut = cut_size(A, B)
 	logging.info("The size of the old cut is %d", old_cut)
 
-	cut_sizes = {
-		0: old_cut
+	gains = {
+		0: 0
 	}
-	for i in range(1, len(A)+1):
-		# maxGain = float("-infinity")
 
-		# e = None
-		# swap = None
+	for i in range(1, len(A) + 1):
+		a_largest = heapq.nlargest(3, Da.iteritems(), key=operator.itemgetter(1))
+		b_largest = heapq.nlargest(3, Db.iteritems(), key=operator.itemgetter(1))
 
-		# Look through all nodes - n^2
-		# for n1 in temp_a:
-		# 	for n2 in temp_b:
-		# 		e = edge_between(n1, n2)
-		# 		gain = 0
-		# 		if e != None:
-		# 			gain = D[n1] + D[n2] + 2 * e.weight
-		# 		else:
-		# 			gain = D[n1] + D[n2]
+		max_gain = -10000
+		for (node_a, gain_a) in a_largest:
+			for (node_b, gain_b) in b_largest:
+				gain = gain_a + gain_b
 
-		# 		if (gain > maxGain):
-		# 			maxGain = gain
-		# 			swap = (n1, n2)
+				if gain > max_gain:
+					e = edge_between(node_a, node_b)
 
-		n1 = max(Da, key=Da.get)
-		n2 = max(Db, key=Db.get)
+					if e != None:
+						gain = gain - 2 * e.weight
 
-		swap = (n1, n2)
-		if swap:
-			logging.debug("Swapping %s", str(swap))
+					if gain > max_gain:
+						max_gain = gain
+						swap = ((node_a, gain_a), (node_b, gain_b))
 
-			## Lock vertices
-			temp_a.remove(swap[0])
-			temp_b.remove(swap[1])
-			swaps.append(swap)
+		((node_a, gain_a), (node_b, gain_b)) = swap
+		e = edge_between(node_a, node_b)
+		logging.debug("Swapping %s", swap)
 
-			## Do the actual swap (which might be reverted later, but is needed to calc the size of the new cut)
-			A.remove(swap[0])
-			B.add(swap[0])
-			B.remove(swap[1])
-			A.add(swap[1])
+		## Lock vertices
+		swaps.append(swap)
 
-			swap[0].locked = True
-			swap[1].locked = True
+		## Do the actual swap (which might be reverted later, but is needed to calc the size of the new cut)
+		A.remove(node_a)
+		B.add(node_a)
+		B.remove(node_b)
+		A.add(node_b)
 
-			## Calc new D values
-			## Second way - recalc for all neighbours
-			for (e, ne) in swap[0].neighbours:
-				## Swap 0 is removed from A and put into B
-				if not ne.locked:
-					if ne in temp_a:
-						Da[ne] = Da[ne] + e.weight
-						# Da[ne] = compute_improvement(ne, A, B)
-					else:
-						Db[ne] = Db[ne] - e.weight
-						# Db[ne] = compute_improvement(ne, A, B)
-				## If ne is in neither it is locked, and we don't need to recalc
+		node_a.locked = True
+		node_b.locked = True
 
-			for (e, ne) in swap[1].neighbours:
-				## Swap 1 is removed from B and put into A
-				# if ne in temp_a:
-				if not ne.locked:
-					if ne in temp_a:
-						Da[ne] = Da[ne] - e.weight
-						# Da[ne] = compute_improvement(ne, A, B)
-					else:
-						Db[ne] = Db[ne] + e.weight
-						# Db[ne] = compute_improvement(ne, A, B)
+		gain = gain_a + gain_b
+		if e != None:
+			gain = gain - 2 * e.weight
+		gains[i] = gain
 
-			del Da[n1]
-			del Db[n2]
+		del Da[node_a]
+		del Db[node_b]
 
-			cut_sizes[i] = cut_size(A, B)
-		else:
-			break
+		## Calc new D values
+		for (e, neighbour) in node_a.neighbours:
+			## node_a is removed from A and put into B. This means that for all nodes in A, external cost increases by e.weight, and their internal cost decreases by e.weight.
+			## since D = E - I then D = (E + weight) - (I - weight) = E - I + 2 weight
+			if not neighbour.locked:
+				if neighbour in A:
+					Da[neighbour] = Da[neighbour] + 2*e.weight
+				else:
+					Db[neighbour] = Db[neighbour] - 2*e.weight
 
-	# Find the lowest cut
-	min_i = min(cut_sizes, key=cut_sizes.get)
+		for (e, neighbour) in node_b.neighbours:
+			## node_b is removed from B and put into A
+			if not neighbour.locked:
+				if neighbour in A:
+					Da[neighbour] = Da[neighbour] - 2*e.weight
+				else:
+					Db[neighbour] = Db[neighbour] + 2*e.weight
+
+	current_gain = 0
+	max_gain = -1
+	min_k = len(swaps)
+	for k in range(1, len(gains)):
+		current_gain = current_gain + gains[k]
+
+		if current_gain >= max_gain:
+			max_gain = current_gain
+			min_k = k
 	
-	logging.debug("K that minimizes Gi: %d", min_i)
+	logging.info("K with maximum sub-sum: %d", min_k)
+	logging.info("Gain for k: %d", max_gain)
 
 	j = len(swaps)
-	while j > min_i:
+	while j > min_k:
 		j = j - 1 
 		# Rewind swap
-		swap = swaps.pop() 
-		A.add(swap[0])
-		B.remove(swap[0])
-		B.add(swap[1])
-		A.remove(swap[1])
+		((node_a, _), (node_b, _)) = swaps.pop()
+
+		A.add(node_a)
+		B.remove(node_a)
+		B.add(node_b)
+		A.remove(node_b)
 
 	new_cut = cut_size(A, B)
 	logging.debug("Final swap %s", str(swaps))
@@ -181,8 +167,11 @@ def kernighan_lin(A, B):
 	return A, B
 
 def edge_between(n1, n2):
-	for e in n1.edges:
-		if e.connected_to(n2):
+	if len(n1.neighbours) > len(n2.neighbours):
+		n2, n1 = n1, n2
+
+	for (e, neighbour) in n1.neighbours:
+		if neighbour == n2:
 			return e
 
 	return None
@@ -191,8 +180,8 @@ def cut_size(A, B):
 	size = 0
 
 	for n in A:
-		for e in n.edges:
-			if (e.a in A and e.b in B) or (e.a in B and e.b in A):
+		for (e, neighbour) in n.neighbours:
+			if neighbour in B:
 				size = size + e.weight
 
 	return size

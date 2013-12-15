@@ -1,0 +1,106 @@
+G = the full graph = A union B
+def kernighan_lin(A, B):
+	in parallel do: # Depth = O(1), Work = O(N * 2E/N) = O(E)
+		apply to each Da = compute improvement, a in A
+		apply to each Db = compute improvement, b in B
+
+	swaps = []
+	gains = {
+		0 => 0
+	}
+	old_cut = cut_size(A, B) in parallel # Work = O(N * 2E/N) = O(E), Depth = O(1)
+
+	for i in range (1, len(A) + 1): # Depth = O(n/2) - no parallelization
+		in parallel do: # Work = O(n log n), Depth = O(log n)
+			sort(Da)
+			sort(Db)
+
+		in parallel do: # Work = O(3), Depth = O(1)
+			a_largest = 3 largest elements in Da
+			b_largest = 3 largest elements in Db
+
+		pairs = priorityQ
+		# Depth = O(1), Work = O(9)
+		apply to each gain = Da[a] + Db[b]; pair = a,b; pairs.add(gain, pair), a in a_largest, b in b_largest
+
+		gain, swap = pairs.top
+		node_a, node_b = swap
+
+		# Depth = O(1), Work = O(1)
+		in parallel do:
+			swaps.append(swap)
+			A.remove(node_a)
+			B.add(node_a)
+			A.add(node_b)
+			B.remove(node_B)
+			node_a.locked = True
+			node_b.locked = True
+
+	 	e = edge_between(node_a, node_b)
+		gain = gain - 2 * e.weight
+		gains[i] = gain
+
+		in parallel do:
+			# Work = O(2 * 2E/N) = O (4E / N), Depth = O(1)
+			apply to each e, neighbour in node_a.neighbours:
+				if not neighbour.locked
+					if neighbour in A:
+						Da[neighbour] = Da[neighbour] + 2*e.weight
+					else:
+						Db[neighbour] = Db[neighbour] - 2*e.weight
+
+			apply to each e, neighbour in node_b.neighbours:
+				if not neighbour.locked
+					if neighbour in A:
+						Da[neighbour] = Da[neighbour] + 2*e.weight
+					else:
+						Db[neighbour] = Db[neighbour] - 2*e.weight
+
+	# We use two passes to find the max element, where the sequential uses one
+	calculate prefix sums of gains using APS from slides # Work = O(n), Depth = O(log n)
+	find k that gives max of the prefix sums using parallel merge-search? # Work = O(n), Depth = O(log n)
+
+	undo_swaps = swaps where i > k
+
+	apply to each swap in undo_swaps: # Work = O(n), Depth = O(1)
+		node_a, node_b = swap
+
+		in parallel do: # Work = O(1), Depth = O(1)
+			A.add(node_a)
+			B.remove(node_a)
+			B.add(node_b)
+			A.remove(node_b)
+
+	new_cut = cut_size(A, B) # Work = O(N * 2E/N) = O(E), Depth = O(1)
+
+	if old_cut - new_cut > 0:
+		in parallel do: # Work = O(n), Depth = O(1)
+			apply to each unlock a, a in A
+			apply to each unlock b, b in B
+
+		kernighan_lin(A, B)
+
+	return A, B
+
+Pre-calc D = O(E)
+Work outer loop = N/2  * ( n log n + 4E / N ) = O (n^2 * log n / 2 + E)
+Undo swaps + cut size = O(n + E)
+
+Total work  = O( n^2 * log n + E)
+Total depth = O ( n * log n)
+
+# We use two passes to find the max element, where the sequential uses one
+calculate prefix sums of gains using APS from slides # Work = O(n), Depth = O(log n)
+find k that gives max of the prefix sums using parallel merge-search? # Work = O(n), Depth = O(log n)
+
+# parallization  # mapreduce "analysis/argumentation"
+Outer loop cannot be parallized as KL uses local optimizations (see mapreduce below)
+
+Kl uses local optimizations - what is the best step given the current partition
+
+Kl manipulates the data structure in place
+
+The basis of each iteration is dependent on the result of the previous iteration
+
+It does not make sense to look at only parts of the graph - we cannot split the graph, and find individual min cuts. We only have one "key" for the mapper
+
