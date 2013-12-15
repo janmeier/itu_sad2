@@ -55,7 +55,7 @@ def simpleGraphs():
 # simpleGraphs()
 
 
-originalGraph = parseImdb(4500)
+originalGraph = parseImdb(3500)
 graphSize = len(originalGraph.keys())
 print "OriginalGraph size: ", graphSize
 
@@ -83,9 +83,10 @@ edge_count = 0
 for actor in max_component:
 	a = originalGraph[actor]
 	for colleague in a.colleagues:
+		if (actor < colleague):
 		# if randint(0, 9) >= 5:
-		Edge(nodes[a.id], nodes[colleague], a.colleagues[colleague])
-		edge_count = edge_count + 1
+			Edge(nodes[a.id], nodes[colleague], a.colleagues[colleague])
+			edge_count = edge_count + 1
 
 print "Edge count: ", edge_count
 
